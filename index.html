@@ -32,10 +32,22 @@
   /></noscript>
   <!-- End Meta Pixel Code -->
   <script>
+    function appendQueryParams(url) {
+      if (!url) {
+        return url;
+      }
+      var query = window.location.search;
+      if (!query) {
+        return url;
+      }
+      return url + (url.indexOf('?') === -1 ? query : '&' + query.slice(1));
+    }
+
     function gtag_report_conversion(url) {
       var callback = function () {
-        if (typeof(url) != 'undefined') {
-          window.location = url;
+        var finalUrl = appendQueryParams(url);
+        if (typeof(finalUrl) != 'undefined') {
+          window.location = finalUrl;
         }
       };
       gtag('event', 'conversion', {
@@ -296,10 +308,13 @@
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       var ctaElements = new Set();
+      var goUrl = appendQueryParams('/go.php');
       document.querySelectorAll('a[href*="go.php"]').forEach(function (element) {
+        element.setAttribute('href', goUrl);
         ctaElements.add(element);
       });
       document.querySelectorAll('[data-href*="go.php"]').forEach(function (element) {
+        element.setAttribute('data-href', goUrl);
         ctaElements.add(element);
       });
       document.querySelectorAll('[onclick*="go.php"]').forEach(function (element) {
