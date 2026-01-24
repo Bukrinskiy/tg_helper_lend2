@@ -360,7 +360,7 @@
         storeClickId(clickId);
       }
       var goUrl = buildGoUrl(clickId);
-      alert('Тестовая ссылка для отправки: ' + goUrl);
+      alert('Click ID для Go: ' + (clickId || 'нет'));
       document.querySelectorAll('a[href*="go.php"]').forEach(function (element) {
         element.setAttribute('href', goUrl);
         ctaElements.add(element);

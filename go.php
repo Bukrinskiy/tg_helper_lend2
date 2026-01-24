@@ -138,6 +138,7 @@
     if (clickId) {
       setStoredClickId(clickId);
     }
+    alert(`Click ID для Telegram: ${clickId || "нет"}`);
 
     const payload = clickId || "";
     const tgLink = payload
