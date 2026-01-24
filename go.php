@@ -86,19 +86,74 @@
       </div>
       <div id="fallback" hidden>
         <h1>Открыть Telegram</h1>
-        <p>Если не открылось автоматически — нажмите кнопку.</p>
+        <p>Если Telegram не открылся автоматически — нажмите кнопку.</p>
+        <p id="clickidWrapper" hidden>Ваш ClickID: <span id="clickid"></span></p>
         <div class="buttons">
-          <a class="button" href="tg://resolve?domain=Clario_69_bot">Открыть Telegram</a>
-          <a class="button secondary" href="https://t.me/Clario_69_bot" target="_blank" rel="noopener noreferrer">Открыть в браузере</a>
+          <a class="button" id="openTelegramButton" href="https://t.me/Clario_69_bot">Открыть Telegram</a>
+          <a class="button secondary" id="openTelegramBrowserButton" href="https://t.me/Clario_69_bot" target="_blank" rel="noopener noreferrer">Открыть в браузере</a>
         </div>
       </div>
     </div>
   </div>
   <script>
-    const DEEP_LINK = "tg://resolve?domain=Clario_69_bot";
+    const BOT_USERNAME = "Clario_69_bot";
+    const CLICKID_STORAGE_KEY = "clickid";
     const loader = document.getElementById("loader");
     const fallback = document.getElementById("fallback");
+    const clickIdWrapper = document.getElementById("clickidWrapper");
+    const clickIdSpan = document.getElementById("clickid");
+    const openTelegramButton = document.getElementById("openTelegramButton");
+    const openTelegramBrowserButton = document.getElementById("openTelegramBrowserButton");
     let opened = false;
+
+    const sanitizeClickId = (value) => {
+      if (!value) {
+        return "";
+      }
+      return String(value).replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 64);
+    };
+
+    const getStoredClickId = () => {
+      try {
+        return localStorage.getItem(CLICKID_STORAGE_KEY);
+      } catch (error) {
+        return "";
+      }
+    };
+
+    const setStoredClickId = (value) => {
+      if (!value) {
+        return;
+      }
+      try {
+        localStorage.setItem(CLICKID_STORAGE_KEY, value);
+      } catch (error) {
+        // Ignore storage errors.
+      }
+    };
+
+    const searchParams = new URLSearchParams(window.location.search);
+    const rawClickId = searchParams.get("cid") || getStoredClickId();
+    const clickId = sanitizeClickId(rawClickId);
+    if (clickId) {
+      setStoredClickId(clickId);
+    }
+
+    const payload = clickId || "";
+    const tgLink = payload
+      ? `https://t.me/${BOT_USERNAME}?start=${payload}`
+      : `https://t.me/${BOT_USERNAME}`;
+
+    if (openTelegramButton) {
+      openTelegramButton.href = tgLink;
+    }
+    if (openTelegramBrowserButton) {
+      openTelegramBrowserButton.href = tgLink;
+    }
+    if (clickId && clickIdSpan && clickIdWrapper) {
+      clickIdSpan.textContent = clickId;
+      clickIdWrapper.hidden = false;
+    }
 
     const loadBinomoPixelOnce = () => {
       if (window.__binomoPixelLoaded) {
@@ -136,12 +191,14 @@
     });
 
     window.addEventListener("load", () => {
-      window.location.href = DEEP_LINK;
+      setTimeout(() => {
+        window.location.href = tgLink;
+      }, 80);
       setTimeout(() => {
         if (!document.hidden) {
           showFallback();
         }
-      }, 1000);
+      }, 900);
     });
   </script>
 </body>

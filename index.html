@@ -32,31 +32,78 @@
   /></noscript>
   <!-- End Meta Pixel Code -->
   <script>
-    function appendQueryParams(url) {
-      if (!url) {
-        return url;
+    function getCookieValue(name) {
+      var match = document.cookie.match(new RegExp('(^|[ ;])' + name + '=([^;]*)'));
+      return match ? decodeURIComponent(match[2]) : '';
+    }
+
+    function sanitizeClickId(value) {
+      if (!value) {
+        return '';
       }
-      var query = window.location.search;
-      if (!query) {
-        return url;
+      return String(value).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 64);
+    }
+
+    function getClickId() {
+      var searchParams = new URLSearchParams(window.location.search);
+      var candidate =
+        searchParams.get('clickid') ||
+        searchParams.get('cid') ||
+        searchParams.get('bcid') ||
+        (window.tokens && typeof window.tokens.bcid === 'string' ? window.tokens.bcid : '') ||
+        getCookieValue('clickid') ||
+        getCookieValue('bcid');
+      if (!candidate) {
+        try {
+          candidate = localStorage.getItem('clickid') || '';
+        } catch (error) {
+          candidate = '';
+        }
       }
-      return url + (url.indexOf('?') === -1 ? query : '&' + query.slice(1));
+      return sanitizeClickId(candidate);
+    }
+
+    function storeClickId(value) {
+      if (!value) {
+        return;
+      }
+      try {
+        localStorage.setItem('clickid', value);
+      } catch (error) {
+        // Ignore storage errors.
+      }
+    }
+
+    function buildGoUrl(clickId) {
+      if (!clickId) {
+        return '/go.php';
+      }
+      return '/go.php?cid=' + encodeURIComponent(clickId);
     }
 
     function gtag_report_conversion(url) {
-      var callback = function () {
-        var finalUrl = appendQueryParams(url);
-        if (typeof(finalUrl) != 'undefined') {
-          window.location = finalUrl;
+      var finalUrl = url;
+      var navigated = false;
+      var navigate = function () {
+        if (navigated || !finalUrl) {
+          return;
         }
+        navigated = true;
+        window.location = finalUrl;
       };
-      gtag('event', 'conversion', {
+      var fallbackTimer = window.setTimeout(navigate, 600);
+      if (typeof gtag === 'function') {
+        gtag('event', 'conversion', {
           'send_to': 'AW-17758679622/b6dFCLrI4OcbEMbk_5NC',
           'value': 1.0,
           'currency': 'USD',
-          'event_callback': callback
-      });
-      return false;
+          'event_callback': function () {
+            window.clearTimeout(fallbackTimer);
+            navigate();
+          }
+        });
+      }
+      return true;
     }
   </script>
   <script>
@@ -78,7 +125,7 @@
 <body>
   <div class="sticky-cta" id="stickyCta" aria-hidden="true">
     <span>Надоело читать?</span>
-    <a class="button" href="/go.php" onclick="trackFacebookEvent('Contact', 'sticky-cta'); return gtag_report_conversion('/go.php');">Попробовать</a>
+    <a class="button" href="/go.php" onclick="trackFacebookEvent('Contact', 'sticky-cta'); return gtag_report_conversion(this.href);">Попробовать</a>
   </div>
 
   <main>
@@ -275,7 +322,7 @@
     </section>
 
     <section class="main-cta" id="main-cta">
-      <a class="button wide" href="/go.php" onclick="trackFacebookEvent('Lead', 'main-cta'); return gtag_report_conversion('/go.php');">Попробовать помощника</a>
+      <a class="button wide" href="/go.php" onclick="trackFacebookEvent('Lead', 'main-cta'); return gtag_report_conversion(this.href);">Попробовать помощника</a>
       <span class="caption">Работает в Telegram</span>
     </section>
 
@@ -308,7 +355,11 @@
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       var ctaElements = new Set();
-      var goUrl = appendQueryParams('/go.php');
+      var clickId = getClickId();
+      if (clickId) {
+        storeClickId(clickId);
+      }
+      var goUrl = buildGoUrl(clickId);
       document.querySelectorAll('a[href*="go.php"]').forEach(function (element) {
         element.setAttribute('href', goUrl);
         ctaElements.add(element);
