@@ -9,7 +9,8 @@
 <body>
   <p>Переходим на страницу открытия Telegram…</p>
   <script>
-    window.location.replace("/go.php");
+    const target = window.location.search ? `/go.php${window.location.search}` : "/go.php";
+    window.location.replace(target);
   </script>
 </body>
 </html>
