@@ -120,10 +120,10 @@
     if (!params.get("clickid") && storedClickId) {
       params.set("clickid", storedClickId);
     }
-    const payload = params.toString();
-    const payloadEncoded = encodeURIComponent(payload);
-    const tgLink = payload ? `${DEEP_LINK_BASE}&start=${payloadEncoded}` : DEEP_LINK_BASE;
-    const tgWebLink = payload ? `${WEB_LINK_BASE}?start=${payloadEncoded}` : WEB_LINK_BASE;
+    const clickId = params.get("clickid") || "";
+    const startPayload = clickId ? encodeURIComponent(clickId) : "";
+    const tgLink = startPayload ? `${DEEP_LINK_BASE}&start=${startPayload}` : DEEP_LINK_BASE;
+    const tgWebLink = startPayload ? `${WEB_LINK_BASE}?start=${startPayload}` : WEB_LINK_BASE;
 
     loader.hidden = true;
     fallback.hidden = false;
@@ -138,6 +138,7 @@
     }
 
     console.log("[go] params:", params.toString());
+    console.log("[go] clickid:", clickId);
     console.log("[go] tgLink:", tgLink);
     alert(tgLink);
   </script>
