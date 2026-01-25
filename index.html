@@ -32,53 +32,80 @@
   /></noscript>
   <!-- End Meta Pixel Code -->
   <script>
-    function getCookieValue(name) {
-      var match = document.cookie.match(new RegExp('(^|[ ;])' + name + '=([^;]*)'));
-      return match ? decodeURIComponent(match[2]) : '';
-    }
-
-    function sanitizeClickId(value) {
-      if (!value) {
-        return '';
-      }
-      return String(value).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 64);
-    }
-
-    function getClickId() {
-      var searchParams = new URLSearchParams(window.location.search);
-      var candidate =
-        searchParams.get('clickid') ||
-        searchParams.get('cid') ||
-        searchParams.get('bcid') ||
-        (window.tokens && typeof window.tokens.bcid === 'string' ? window.tokens.bcid : '') ||
-        getCookieValue('clickid') ||
-        getCookieValue('bcid');
-      if (!candidate) {
-        try {
-          candidate = localStorage.getItem('clickid') || '';
-        } catch (error) {
-          candidate = '';
-        }
-      }
-      return sanitizeClickId(candidate);
-    }
+    var GO_PATH = '/go.php';
 
     function storeClickId(value) {
       if (!value) {
         return;
       }
+      window.__CLICKID = value;
       try {
-        localStorage.setItem('clickid', value);
+        sessionStorage.setItem('clickid', value);
       } catch (error) {
         // Ignore storage errors.
       }
     }
 
-    function buildGoUrl(clickId) {
-      if (!clickId) {
-        return '/go.php';
+    function getStoredClickId() {
+      var stored = '';
+      try {
+        stored = sessionStorage.getItem('clickid') || '';
+      } catch (error) {
+        stored = '';
       }
-      return '/go.php?cid=' + encodeURIComponent(clickId);
+      return window.__CLICKID || stored;
+    }
+
+    function buildGoUrlWithParams() {
+      var params = new URLSearchParams(window.location.search);
+      var clickId = getStoredClickId();
+      if (clickId) {
+        params.set('clickid', clickId);
+      }
+      var queryString = params.toString();
+      return queryString ? GO_PATH + '?' + queryString : GO_PATH;
+    }
+
+    function waitForBPixelJS(timeoutMs, callback) {
+      var resolved = false;
+      var start = Date.now();
+
+      function finish(available) {
+        if (resolved) {
+          return;
+        }
+        resolved = true;
+        callback(available);
+      }
+
+      function check() {
+        if (window.BPixelJS && typeof window.BPixelJS.useTokens === 'function') {
+          finish(true);
+          return;
+        }
+        if (Date.now() - start >= timeoutMs) {
+          finish(false);
+          return;
+        }
+        window.setTimeout(check, 100);
+      }
+
+      check();
+    }
+
+    function initClickId() {
+      waitForBPixelJS(3000, function (available) {
+        if (!available) {
+          return;
+        }
+        window.BPixelJS.useTokens(function (tokens) {
+          var clickId = tokens && tokens.clickid ? tokens.clickid : '';
+          if (clickId) {
+            storeClickId(clickId);
+          }
+          console.log('[clickid] received:', clickId);
+        });
+      });
     }
 
     function gtag_report_conversion(url) {
@@ -125,7 +152,7 @@
 <body>
   <div class="sticky-cta" id="stickyCta" aria-hidden="true">
     <span>Надоело читать?</span>
-    <a class="button" href="/go.php" onclick="trackFacebookEvent('Contact', 'sticky-cta'); return gtag_report_conversion(this.href);">Попробовать</a>
+    <a class="button" href="/go.php" data-cta-event="Contact" data-cta-label="sticky-cta">Попробовать</a>
   </div>
 
   <main>
@@ -322,7 +349,7 @@
     </section>
 
     <section class="main-cta" id="main-cta">
-      <a class="button wide" href="/go.php" onclick="trackFacebookEvent('Lead', 'main-cta'); return gtag_report_conversion(this.href);">Попробовать помощника</a>
+      <a class="button wide" href="/go.php" data-cta-event="Lead" data-cta-label="main-cta">Попробовать помощника</a>
       <span class="caption">Работает в Telegram</span>
     </section>
 
@@ -354,28 +381,15 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', function () {
+      initClickId();
       var ctaElements = new Set();
-      var clickId = getClickId();
-      if (clickId) {
-        storeClickId(clickId);
-      }
-      var goUrl = buildGoUrl(clickId);
-      alert('Click ID для Go: ' + (clickId || 'нет'));
-      document.querySelectorAll('a[href*="go.php"]').forEach(function (element) {
-        element.setAttribute('href', goUrl);
-        ctaElements.add(element);
-      });
-      document.querySelectorAll('[data-href*="go.php"]').forEach(function (element) {
-        element.setAttribute('data-href', goUrl);
-        ctaElements.add(element);
-      });
-      document.querySelectorAll('[onclick*="go.php"]').forEach(function (element) {
+      document.querySelectorAll('a[href*="go.php"], [data-href*="go.php"]').forEach(function (element) {
         ctaElements.add(element);
       });
 
       var conversionSent = false;
 
-      function handleCtaClick() {
+      function handlePixelConversion() {
         if (conversionSent) {
           return;
         }
@@ -388,8 +402,22 @@
         }
       }
 
+      function handleGoClick(event) {
+        event.preventDefault();
+        var element = event.currentTarget;
+        var eventName = element.dataset.ctaEvent;
+        var label = element.dataset.ctaLabel || eventName || 'cta';
+        if (eventName) {
+          trackFacebookEvent(eventName, label);
+        }
+        var goUrl = buildGoUrlWithParams();
+        console.log('[go] navigate to:', goUrl);
+        handlePixelConversion();
+        gtag_report_conversion(goUrl);
+      }
+
       ctaElements.forEach(function (element) {
-        element.addEventListener('click', handleCtaClick);
+        element.addEventListener('click', handleGoClick);
       });
     });
   </script>
