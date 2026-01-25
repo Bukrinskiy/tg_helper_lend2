@@ -34,13 +34,33 @@
   <script>
     var GO_PATH = '/go.php';
 
-    function storeClickId(value) {
+    function normalizeClickId(value) {
       if (!value) {
+        return '';
+      }
+      var decoded = value;
+      try {
+        decoded = decodeURIComponent(value);
+      } catch (error) {
+        decoded = value;
+      }
+      if (/^clickid=/i.test(decoded)) {
+        return decoded.replace(/^clickid=/i, '');
+      }
+      if (/^clickid%3d/i.test(value)) {
+        return value.replace(/^clickid%3d/i, '');
+      }
+      return decoded;
+    }
+
+    function storeClickId(value) {
+      var normalized = normalizeClickId(value);
+      if (!normalized) {
         return;
       }
-      window.__CLICKID = value;
+      window.__CLICKID = normalized;
       try {
-        sessionStorage.setItem('clickid', value);
+        sessionStorage.setItem('clickid', normalized);
       } catch (error) {
         // Ignore storage errors.
       }
