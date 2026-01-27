@@ -433,9 +433,7 @@
         var goUrl = buildGoUrlWithParams();
         console.log('[go] navigate to:', goUrl);
         handlePixelConversion();
-        window.setTimeout(function () {
-          gtag_report_conversion(goUrl);
-        }, 5000);
+        gtag_report_conversion(goUrl);
       }
 
       ctaElements.forEach(function (element) {
